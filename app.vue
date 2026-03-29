@@ -20,29 +20,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { computed } from 'vue'
 import { useGameState } from '~/composables/useGameState'
+import { useOrientation } from '~/composables/useOrientation'
 
 const { state } = useGameState()
-
-const isPortrait = ref(true)
+const { isPortrait } = useOrientation()
 
 const isGamePhase = computed(() =>
   state.phase !== 'menu' && state.phase !== 'results'
 )
-
-function checkOrientation() {
-  isPortrait.value = window.innerHeight > window.innerWidth
-}
-
-onMounted(() => {
-  checkOrientation()
-  window.addEventListener('resize', checkOrientation)
-  window.addEventListener('orientationchange', checkOrientation)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', checkOrientation)
-  window.removeEventListener('orientationchange', checkOrientation)
-})
 </script>

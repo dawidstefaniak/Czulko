@@ -8,25 +8,39 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useGameState } from '~/composables/useGameState'
+import { useOrientation } from '~/composables/useOrientation'
 
 const { startPlaying } = useGameState()
+const { isPortrait } = useOrientation()
 
 const count = ref(5)
 let interval: ReturnType<typeof setInterval> | null = null
 
-onMounted(() => {
+function startTimer() {
+  stopTimer()
   interval = setInterval(() => {
     count.value--
     if (count.value <= 0) {
-      if (interval) clearInterval(interval)
+      stopTimer()
       startPlaying()
     }
   }, 1000)
+}
+
+function stopTimer() {
+  if (interval) { clearInterval(interval); interval = null }
+}
+
+watch(isPortrait, (portrait) => {
+  if (portrait) stopTimer()
+  else startTimer()
 })
 
-onUnmounted(() => {
-  if (interval) clearInterval(interval)
+onMounted(() => {
+  if (!isPortrait.value) startTimer()
 })
+
+onUnmounted(() => stopTimer())
 </script>

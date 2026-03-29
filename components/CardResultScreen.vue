@@ -26,10 +26,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useGameState } from '~/composables/useGameState'
+import { useOrientation } from '~/composables/useOrientation'
 
 const { state, currentPlayer, nextCard } = useGameState()
+const { isPortrait } = useOrientation()
 
 const countdown = ref(5)
 
@@ -39,18 +41,30 @@ const isLastCard = computed(() =>
 
 let interval: ReturnType<typeof setInterval> | null = null
 
-onMounted(() => {
-  countdown.value = 5
+function startTimer() {
+  stopTimer()
   interval = setInterval(() => {
     countdown.value--
     if (countdown.value <= 0) {
-      if (interval) clearInterval(interval)
+      stopTimer()
       nextCard()
     }
   }, 1000)
+}
+
+function stopTimer() {
+  if (interval) { clearInterval(interval); interval = null }
+}
+
+watch(isPortrait, (portrait) => {
+  if (portrait) stopTimer()
+  else startTimer()
 })
 
-onUnmounted(() => {
-  if (interval) clearInterval(interval)
+onMounted(() => {
+  countdown.value = 5
+  if (!isPortrait.value) startTimer()
 })
+
+onUnmounted(() => stopTimer())
 </script>

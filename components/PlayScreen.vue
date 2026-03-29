@@ -29,16 +29,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useGameState } from '~/composables/useGameState'
 import { useTiltDetection } from '~/composables/useTiltDetection'
 import { useWakeLock } from '~/composables/useWakeLock'
+import { useOrientation } from '~/composables/useOrientation'
 
 const { state, currentWord, answerCorrect, answerWrong } = useGameState()
+const { isPortrait } = useOrientation()
 
 const secondsRemaining = ref(state.timePerTurn)
 const isPlaying = ref(true)
 const wakeLockEnabled = ref(true)
+
+const paused = computed(() => isPortrait.value)
+const tiltEnabled = computed(() => isPlaying.value && !paused.value)
 
 const timerPercent = computed(() =>
   (secondsRemaining.value / state.timePerTurn) * 100
@@ -62,25 +67,42 @@ function handleTimeUp() {
   answerWrong()
 }
 
-// Calibrate baseline on mount (each new word re-mounts this component via cardResult → playing transition)
-const { calibrate } = useTiltDetection(handleCorrect, handleWrong, () => isPlaying.value)
+const { calibrate } = useTiltDetection(handleCorrect, handleWrong, () => tiltEnabled.value)
 
 let timer: ReturnType<typeof setInterval> | null = null
+
+function startTimer() {
+  stopTimer()
+  timer = setInterval(() => {
+    secondsRemaining.value--
+    if (secondsRemaining.value <= 0) {
+      stopTimer()
+      handleTimeUp()
+    }
+  }, 1000)
+}
+
+function stopTimer() {
+  if (timer) { clearInterval(timer); timer = null }
+}
+
+watch(paused, (isPaused) => {
+  if (isPaused) {
+    stopTimer()
+  } else {
+    calibrate()
+    startTimer()
+  }
+})
 
 onMounted(() => {
   secondsRemaining.value = state.timePerTurn
   calibrate()
-  timer = setInterval(() => {
-    secondsRemaining.value--
-    if (secondsRemaining.value <= 0) {
-      if (timer) clearInterval(timer)
-      handleTimeUp()
-    }
-  }, 1000)
+  if (!paused.value) startTimer()
 })
 
 onUnmounted(() => {
-  if (timer) clearInterval(timer)
+  stopTimer()
   wakeLockEnabled.value = false
 })
 </script>
