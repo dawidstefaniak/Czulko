@@ -32,18 +32,12 @@ export function useTiltDetection(
   let isCalibrating = false
   const tiltActive = ref(false)
 
+  // Always use beta for nod detection. Beta measures front-to-back tilt
+  // in the device's frame: ~90° when upright at forehead, increases on
+  // nod down, decreases on nod up. This works regardless of portrait/landscape
+  // because the phone is always roughly vertical against the forehead.
   function getRawTiltValue(event: DeviceOrientationEvent): number {
-    const beta = event.beta
-    const gamma = event.gamma
-    const orientation = screen.orientation?.type || ''
-
-    if (orientation.includes('landscape')) {
-      if (orientation === 'landscape-secondary') {
-        return -(gamma ?? 0)
-      }
-      return gamma ?? 0
-    }
-    return beta ?? 90
+    return event.beta ?? 90
   }
 
   /** Call this to recalibrate the baseline for a new word */
