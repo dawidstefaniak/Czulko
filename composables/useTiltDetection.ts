@@ -1,11 +1,11 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 
 // A deliberate nod peak is typically 100-300 deg/s; raise threshold to ignore noise
-const VELOCITY_THRESHOLD = 120
+const VELOCITY_THRESHOLD = 180
 // Minimum time between triggers
 const COOLDOWN_MS = 1500
 // Need this many consecutive readings above threshold in the same direction
-const CONFIRM_COUNT = 3
+const CONFIRM_COUNT = 4
 
 export async function requestOrientationPermission(): Promise<boolean> {
   const DOE = (window as any).DeviceOrientationEvent
