@@ -1,9 +1,11 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 
-// Angular velocity threshold in deg/s - a deliberate nod produces 50-150 deg/s
-const VELOCITY_THRESHOLD = 50
+// A deliberate nod peak is typically 100-300 deg/s; raise threshold to ignore noise
+const VELOCITY_THRESHOLD = 120
 // Minimum time between triggers
-const COOLDOWN_MS = 1200
+const COOLDOWN_MS = 1500
+// Need this many consecutive readings above threshold in the same direction
+const CONFIRM_COUNT = 3
 
 export async function requestOrientationPermission(): Promise<boolean> {
   const DOE = (window as any).DeviceOrientationEvent
@@ -26,43 +28,57 @@ export function useTiltDetection(
   let lastTrigger = 0
   const tiltActive = ref(false)
 
-  // Use devicemotion rotationRate instead of deviceorientation.
-  // rotationRate.beta = angular velocity around the X-axis (deg/s).
-  // In landscape, a nod is rotation around the axis that runs along
-  // the long edge of the phone. We check both beta and gamma rotation
-  // rates and use whichever is larger — this works regardless of
-  // portrait/landscape/which-landscape.
+  // Track consecutive strong readings in the same direction
+  let consecutivePositive = 0
+  let consecutiveNegative = 0
+
   function handleMotion(event: DeviceMotionEvent) {
     if (!enabled()) return
 
     const now = Date.now()
-    if (now - lastTrigger < COOLDOWN_MS) return
+    if (now - lastTrigger < COOLDOWN_MS) {
+      consecutivePositive = 0
+      consecutiveNegative = 0
+      return
+    }
 
     const rate = event.rotationRate
     if (!rate) return
 
-    const betaRate = rate.beta ?? 0  // deg/s around X-axis
-    const gammaRate = rate.gamma ?? 0 // deg/s around Y-axis
+    const betaRate = rate.beta ?? 0
+    const gammaRate = rate.gamma ?? 0
 
-    // Pick the axis with the stronger rotation — that's the nod axis
+    // Pick the axis with the stronger rotation
     const absBeta = Math.abs(betaRate)
     const absGamma = Math.abs(gammaRate)
+    const nodVelocity = absBeta > absGamma ? betaRate : gammaRate
 
-    let nodVelocity: number
-    if (absBeta > absGamma) {
-      nodVelocity = betaRate
-    } else {
-      nodVelocity = gammaRate
+    // Below threshold — reset streaks
+    if (Math.abs(nodVelocity) < VELOCITY_THRESHOLD) {
+      consecutivePositive = 0
+      consecutiveNegative = 0
+      return
     }
 
-    if (Math.abs(nodVelocity) < VELOCITY_THRESHOLD) return
-
-    lastTrigger = now
-    // Positive rotation rate = tilting forward/down = correct
-    // Negative rotation rate = tilting backward/up = wrong
+    // Count consecutive readings in the same direction
     if (nodVelocity > 0) {
-      onCorrect()
+      consecutivePositive++
+      consecutiveNegative = 0
     } else {
+      consecutiveNegative++
+      consecutivePositive = 0
+    }
+
+    // Only trigger after CONFIRM_COUNT consecutive readings agree
+    if (consecutivePositive >= CONFIRM_COUNT) {
+      lastTrigger = now
+      consecutivePositive = 0
+      consecutiveNegative = 0
+      onCorrect()
+    } else if (consecutiveNegative >= CONFIRM_COUNT) {
+      lastTrigger = now
+      consecutivePositive = 0
+      consecutiveNegative = 0
       onWrong()
     }
   }
@@ -81,8 +97,6 @@ export function useTiltDetection(
     }
   }
 
-  // calibrate() kept for API compat with PlayScreen — no-op now since
-  // rotationRate doesn't need calibration
   function calibrate() {}
 
   onMounted(() => {
