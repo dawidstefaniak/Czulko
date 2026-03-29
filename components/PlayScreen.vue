@@ -62,12 +62,14 @@ function handleTimeUp() {
   answerWrong()
 }
 
-useTiltDetection(handleCorrect, handleWrong, () => isPlaying.value)
+// Calibrate baseline on mount (each new word re-mounts this component via cardResult → playing transition)
+const { calibrate } = useTiltDetection(handleCorrect, handleWrong, () => isPlaying.value)
 
 let timer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   secondsRemaining.value = state.timePerTurn
+  calibrate()
   timer = setInterval(() => {
     secondsRemaining.value--
     if (secondsRemaining.value <= 0) {
