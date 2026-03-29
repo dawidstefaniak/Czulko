@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    overscroll-behavior: none;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    @apply bg-gray-900 text-white;
+  }
+}
+
+@layer components {
+  .game-screen {
+    user-select: none;
+    touch-action: none;
+    -webkit-user-select: none;
+  }
+}
+
+@keyframes pulse-scale {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+.animate-pulse-scale {
+  animation: pulse-scale 1s ease-in-out infinite;
+}
+
+@keyframes flash-green {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  100% { opacity: 1; }
+}
+
+@keyframes flash-red {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  100% { opacity: 1; }
+}
