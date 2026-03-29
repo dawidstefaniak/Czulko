@@ -1,11 +1,11 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 
 // Tilt must deviate this many degrees from calibrated baseline to trigger
-const TRIGGER_THRESHOLD = 45
+const TRIGGER_THRESHOLD = 30
 // Minimum time between triggers
 const COOLDOWN_MS = 1000
 // Number of samples to average for calibration
-const CALIBRATION_SAMPLES = 10
+const CALIBRATION_SAMPLES = 15
 
 export async function requestOrientationPermission(): Promise<boolean> {
   const DOE = (window as any).DeviceOrientationEvent
@@ -27,23 +27,20 @@ export function useTiltDetection(
 ) {
   let lastTrigger = 0
   let isInNeutral = true
-  let baseline: number | null = null
-  let calibrationBuffer: number[] = []
+  let baselineBeta: number | null = null
+  let baselineGamma: number | null = null
+  let useGamma = false    // true if phone is landscape → nod axis is gamma
+  let gammaInvert = false // true if gamma sign is inverted for this landscape direction
+  let calibrationBeta: number[] = []
+  let calibrationGamma: number[] = []
   let isCalibrating = false
   const tiltActive = ref(false)
 
-  // Always use beta for nod detection. Beta measures front-to-back tilt
-  // in the device's frame: ~90° when upright at forehead, increases on
-  // nod down, decreases on nod up. This works regardless of portrait/landscape
-  // because the phone is always roughly vertical against the forehead.
-  function getRawTiltValue(event: DeviceOrientationEvent): number {
-    return event.beta ?? 90
-  }
-
-  /** Call this to recalibrate the baseline for a new word */
   function calibrate() {
-    baseline = null
-    calibrationBuffer = []
+    baselineBeta = null
+    baselineGamma = null
+    calibrationBeta = []
+    calibrationGamma = []
     isCalibrating = true
     isInNeutral = true
   }
@@ -51,26 +48,55 @@ export function useTiltDetection(
   function handleOrientation(event: DeviceOrientationEvent) {
     if (!enabled()) return
 
-    const raw = getRawTiltValue(event)
+    const beta = event.beta ?? 0
+    const gamma = event.gamma ?? 0
 
-    // Calibration phase: collect samples to establish the "neutral" position
+    // --- Calibration: collect samples for both axes ---
     if (isCalibrating) {
-      calibrationBuffer.push(raw)
-      if (calibrationBuffer.length >= CALIBRATION_SAMPLES) {
-        baseline = calibrationBuffer.reduce((a, b) => a + b, 0) / calibrationBuffer.length
+      calibrationBeta.push(beta)
+      calibrationGamma.push(gamma)
+      if (calibrationBeta.length >= CALIBRATION_SAMPLES) {
+        baselineBeta = calibrationBeta.reduce((a, b) => a + b, 0) / calibrationBeta.length
+        baselineGamma = calibrationGamma.reduce((a, b) => a + b, 0) / calibrationGamma.length
+
+        // Detect phone orientation from sensor values:
+        // Portrait at forehead: beta ≈ 90°, gamma ≈ 0° → nod axis is beta
+        // Landscape at forehead: beta ≈ 0°, |gamma| ≈ 90° → nod axis is gamma
+        const betaFromUpright = Math.abs(Math.abs(baselineBeta) - 90)
+        const gammaFromUpright = Math.abs(Math.abs(baselineGamma) - 90)
+
+        if (betaFromUpright < 40) {
+          // Beta is near ±90° → phone is portrait → nod changes beta
+          useGamma = false
+        } else {
+          // Beta is far from 90° → phone is landscape → nod changes gamma
+          useGamma = true
+          // When baselineGamma > 0 (landscape-primary): nod down → gamma decreases → invert
+          // When baselineGamma < 0 (landscape-secondary): nod down → gamma increases → don't invert
+          gammaInvert = (baselineGamma ?? 0) > 0
+        }
+
         isCalibrating = false
-        calibrationBuffer = []
+        calibrationBeta = []
+        calibrationGamma = []
       }
       return
     }
 
-    if (baseline === null) return
+    if (baselineBeta === null || baselineGamma === null) return
 
-    const tiltFromBaseline = raw - baseline
+    // Compute tilt deviation from baseline on the detected nod axis
+    let tiltFromBaseline: number
+    if (useGamma) {
+      tiltFromBaseline = gamma - baselineGamma!
+      if (gammaInvert) tiltFromBaseline = -tiltFromBaseline
+    } else {
+      tiltFromBaseline = beta - baselineBeta!
+    }
 
     // Hysteresis: must return near neutral before triggering again
     if (!isInNeutral) {
-      if (Math.abs(tiltFromBaseline) < 15) {
+      if (Math.abs(tiltFromBaseline) < 12) {
         isInNeutral = true
       }
       return
@@ -79,6 +105,7 @@ export function useTiltDetection(
     const now = Date.now()
     if (now - lastTrigger < COOLDOWN_MS) return
 
+    // Positive tilt = nod down = correct, negative = nod up = wrong
     if (tiltFromBaseline > TRIGGER_THRESHOLD) {
       lastTrigger = now
       isInNeutral = false
@@ -108,7 +135,6 @@ export function useTiltDetection(
     window.addEventListener('deviceorientation', handleOrientation)
     window.addEventListener('keydown', handleKeyDown)
     tiltActive.value = true
-    // Start initial calibration
     calibrate()
   })
 
