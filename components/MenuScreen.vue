@@ -25,35 +25,15 @@
     <!-- Players -->
     <div class="w-full max-w-md mb-6">
       <h2 class="text-lg font-semibold text-gray-300 mb-3">Gracze</h2>
-      <div class="flex gap-2 mb-3">
-        <input
-          v-model="newPlayerName"
-          type="text"
-          placeholder="Imię gracza"
-          class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
-          @keydown.enter="handleAddPlayer"
-        />
-        <button
-          class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-lg font-semibold transition-colors"
-          @click="handleAddPlayer"
-        >
-          Dodaj
-        </button>
-      </div>
       <div class="space-y-2">
-        <div
-          v-for="(player, idx) in state.players"
+        <input
+          v-for="(_, idx) in playerFields"
           :key="idx"
-          class="flex items-center justify-between bg-gray-800 rounded-lg px-4 py-3"
-        >
-          <span class="text-white font-medium">{{ player.name }}</span>
-          <button
-            class="text-red-400 hover:text-red-300 text-xl font-bold"
-            @click="removePlayer(idx)"
-          >
-            &times;
-          </button>
-        </div>
+          v-model="playerFields[idx]"
+          type="text"
+          :placeholder="'Gracz ' + (idx + 1)"
+          class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+        />
       </div>
     </div>
 
@@ -99,32 +79,41 @@
           ? 'bg-green-600 hover:bg-green-700 text-white'
           : 'bg-gray-700 text-gray-500 cursor-not-allowed',
       ]"
-      @click="startGame"
+      @click="handleStart"
     >
       Rozpocznij grę!
     </button>
     <p v-if="!canStart" class="text-gray-500 text-sm mt-2">
-      Wybierz kategorię i dodaj co najmniej jednego gracza
+      Wybierz kategorię i wpisz co najmniej jednego gracza
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { reactive, computed, watch } from 'vue'
 import { CATEGORIES, type Category } from '~/data/categories'
 import { useGameState } from '~/composables/useGameState'
 
-const { state, setCategory, addPlayer, removePlayer, setTime, setCards, startGame } = useGameState()
+const { state, setCategory, setTime, setCards, startGameWithPlayers } = useGameState()
 
-const newPlayerName = ref('')
+const playerFields = reactive<string[]>(['', '', '', ''])
 
-const canStart = computed(() => state.category !== null && state.players.length > 0)
-
-function handleAddPlayer() {
-  const name = newPlayerName.value.trim()
-  if (name) {
-    addPlayer(name)
-    newPlayerName.value = ''
+// Auto-expand: if all fields have text, add a new empty one
+watch(playerFields, (fields) => {
+  const allFilled = fields.every(f => f.trim() !== '')
+  if (allFilled) {
+    playerFields.push('')
   }
+}, { deep: true })
+
+const filledPlayers = computed(() =>
+  playerFields.filter(f => f.trim() !== '').map(f => f.trim())
+)
+
+const canStart = computed(() => state.category !== null && filledPlayers.value.length > 0)
+
+function handleStart() {
+  if (!canStart.value) return
+  startGameWithPlayers(filledPlayers.value)
 }
 </script>

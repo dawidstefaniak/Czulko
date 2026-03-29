@@ -56,14 +56,6 @@ export function useGameState() {
     state.category = category
   }
 
-  function addPlayer(name: string) {
-    state.players.push({ name, score: 0, answers: [] })
-  }
-
-  function removePlayer(index: number) {
-    state.players.splice(index, 1)
-  }
-
   function setTime(time: number) {
     state.timePerTurn = time
   }
@@ -72,15 +64,16 @@ export function useGameState() {
     state.cardsPerPlayer = cards
   }
 
-  function startGame() {
-    if (!state.category || state.players.length === 0) return
+  function startGameWithPlayers(playerNames: string[]) {
+    if (!state.category || playerNames.length === 0) return
+    state.players = playerNames.map(name => ({ name, score: 0, answers: [] }))
     const totalCards = state.players.length * state.cardsPerPlayer
     const categoryWords = CATEGORIES[state.category].words
     let words: string[]
     if (categoryWords.length >= totalCards) {
       words = shuffleArray(categoryWords).slice(0, totalCards)
     } else {
-      const repeated = []
+      const repeated: string[] = []
       while (repeated.length < totalCards) {
         repeated.push(...shuffleArray(categoryWords))
       }
@@ -89,7 +82,6 @@ export function useGameState() {
     state.words = words
     state.currentPlayerIndex = 0
     state.currentCardIndex = 0
-    state.players.forEach(p => { p.score = 0; p.answers = [] })
     state.phase = 'playerIntro'
   }
 
@@ -154,11 +146,9 @@ export function useGameState() {
     currentPlayer,
     currentWord,
     setCategory,
-    addPlayer,
-    removePlayer,
     setTime,
     setCards,
-    startGame,
+    startGameWithPlayers,
     startCountdown,
     startPlaying,
     answerCorrect,

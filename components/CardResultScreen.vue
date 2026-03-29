@@ -8,9 +8,12 @@
     <div class="text-9xl mb-4">
       {{ state.lastAnswerCorrect ? '✓' : '✗' }}
     </div>
-    <h2 class="text-4xl font-bold text-white mb-6">
+    <h2 class="text-4xl font-bold text-white mb-4">
       {{ state.lastAnswerCorrect ? 'Dobrze!' : 'Źle!' }}
     </h2>
+
+    <!-- Current player name -->
+    <p class="text-xl text-white/70 mb-4">{{ currentPlayer?.name }}</p>
 
     <!-- Current score -->
     <div class="bg-black/20 rounded-2xl px-8 py-4 mb-8">
