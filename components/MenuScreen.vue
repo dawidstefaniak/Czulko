@@ -5,19 +5,40 @@
     <!-- Category Selection -->
     <div class="w-full max-w-md mb-6">
       <h2 class="text-lg font-semibold text-gray-300 mb-3">Wybierz kategorię</h2>
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
         <button
           v-for="(cat, key) in CATEGORIES"
           :key="key"
           :class="[
-            'p-4 rounded-xl text-lg font-bold transition-all border-2',
+            'p-3 rounded-xl text-base font-bold transition-all border-2 flex flex-col items-center gap-1',
             state.category === key
               ? 'bg-indigo-600 border-indigo-400 text-white scale-105'
               : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-indigo-500',
           ]"
           @click="setCategory(key as Category)"
         >
-          {{ cat.label }}
+          <span class="text-2xl">{{ cat.emoji }}</span>
+          <span>{{ cat.label }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Difficulty Selection -->
+    <div class="w-full max-w-md mb-6">
+      <h2 class="text-lg font-semibold text-gray-300 mb-3">Poziom trudności</h2>
+      <div class="grid grid-cols-4 gap-2">
+        <button
+          v-for="diff in difficulties"
+          :key="diff.value"
+          :class="[
+            'py-3 rounded-xl text-sm font-bold transition-all border-2',
+            state.difficulty === diff.value
+              ? diff.activeClass
+              : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-500',
+          ]"
+          @click="setDifficulty(diff.value)"
+        >
+          {{ diff.label }}
         </button>
       </div>
     </div>
@@ -91,14 +112,20 @@
 
 <script setup lang="ts">
 import { reactive, computed, watch } from 'vue'
-import { CATEGORIES, type Category } from '~/data/categories'
+import { CATEGORIES, type Category, type Difficulty } from '~/data/categories'
 import { useGameState } from '~/composables/useGameState'
 
-const { state, setCategory, setTime, setCards, startGameWithPlayers } = useGameState()
+const { state, setCategory, setDifficulty, setTime, setCards, startGameWithPlayers } = useGameState()
 
 const playerFields = reactive<string[]>(['', '', '', ''])
 
-// Auto-expand: if all fields have text, add a new empty one
+const difficulties: { value: Difficulty | "all"; label: string; activeClass: string }[] = [
+  { value: 'all', label: 'Wszystko', activeClass: 'bg-indigo-600 border-indigo-400 text-white' },
+  { value: 'easy', label: 'Łatwy', activeClass: 'bg-green-600 border-green-400 text-white' },
+  { value: 'medium', label: 'Średni', activeClass: 'bg-yellow-600 border-yellow-400 text-white' },
+  { value: 'hard', label: 'Trudny', activeClass: 'bg-red-600 border-red-400 text-white' },
+]
+
 watch(playerFields, (fields) => {
   const allFilled = fields.every(f => f.trim() !== '')
   if (allFilled) {

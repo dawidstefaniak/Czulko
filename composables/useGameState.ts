@@ -1,5 +1,5 @@
 import { reactive, computed } from 'vue'
-import { type Category, CATEGORIES, shuffleArray } from '~/data/categories'
+import { type Category, type Difficulty, getWordsForDifficulty, shuffleArray } from '~/data/categories'
 
 export type GamePhase =
   | 'menu'
@@ -23,6 +23,7 @@ export interface Player {
 interface GameState {
   phase: GamePhase
   category: Category | null
+  difficulty: Difficulty | "all"
   players: Player[]
   currentPlayerIndex: number
   currentCardIndex: number
@@ -35,6 +36,7 @@ interface GameState {
 const state = reactive<GameState>({
   phase: 'menu',
   category: null,
+  difficulty: 'all',
   players: [],
   currentPlayerIndex: 0,
   currentCardIndex: 0,
@@ -56,6 +58,10 @@ export function useGameState() {
     state.category = category
   }
 
+  function setDifficulty(difficulty: Difficulty | "all") {
+    state.difficulty = difficulty
+  }
+
   function setTime(time: number) {
     state.timePerTurn = time
   }
@@ -68,7 +74,7 @@ export function useGameState() {
     if (!state.category || playerNames.length === 0) return
     state.players = playerNames.map(name => ({ name, score: 0, answers: [] }))
     const totalCards = state.players.length * state.cardsPerPlayer
-    const categoryWords = CATEGORIES[state.category].words
+    const categoryWords = getWordsForDifficulty(state.category, state.difficulty)
     let words: string[]
     if (categoryWords.length >= totalCards) {
       words = shuffleArray(categoryWords).slice(0, totalCards)
@@ -132,6 +138,7 @@ export function useGameState() {
   function resetGame() {
     state.phase = 'menu'
     state.category = null
+    state.difficulty = 'all'
     state.players = []
     state.currentPlayerIndex = 0
     state.currentCardIndex = 0
@@ -146,6 +153,7 @@ export function useGameState() {
     currentPlayer,
     currentWord,
     setCategory,
+    setDifficulty,
     setTime,
     setCards,
     startGameWithPlayers,
